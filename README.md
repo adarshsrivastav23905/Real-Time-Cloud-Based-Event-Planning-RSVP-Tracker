@@ -38,6 +38,100 @@
 
 ---
 
+## Project Screenshots
+
+### Repository Structure
+
+![Repository structure and project README](screenshots/01_repository.png)
+
+*Repository structure and project overview.*
+
+### System Architecture
+
+![React, FastAPI, WebSockets, and database architecture](screenshots/02_architecture.png)
+
+*High-level architecture of the React frontend, FastAPI backend, WebSocket updates, and database.*
+
+### Sign-In Page
+
+![CloudRSVP sign-in page](screenshots/03_sign_in.png)
+
+*Sign-in page with standard authentication and demo-role access.*
+
+### Registration Page
+
+![CloudRSVP attendee registration page](screenshots/04_registration.png)
+
+*Attendee registration form with required account fields.*
+
+### Organizer Dashboard
+
+![CloudRSVP organizer dashboard and analytics](screenshots/05_organizer_dashboard.png)
+
+*Organizer dashboard showing event totals, RSVP metrics, and attendance analytics.*
+
+### Create Event
+
+![CloudRSVP create event form](screenshots/06_create_event.png)
+
+*Organizer event form with sample event details and publishing controls.*
+
+### Published Event Details
+
+![CloudRSVP published event details](screenshots/07_published_event.png)
+
+*Published event details with status, schedule, venue, and RSVP capacity.*
+
+### Attendee Event Discovery
+
+![CloudRSVP attendee event discovery](screenshots/08_attendee_event_discovery.png)
+
+*Attendee event discovery with search, category filters, and event availability.*
+
+### Attendee Event Details
+
+![CloudRSVP attendee event details](screenshots/09_event_detail.png)
+
+*Attendee event details with published status, schedule, venue, and live capacity.*
+
+### Confirmed Going RSVP
+
+![Attendee confirms a Going RSVP](screenshots/10_rsvp_going.png)
+
+*Attendee confirms a Going response and the event's live RSVP count updates.*
+
+### Maybe RSVP
+
+![Attendee changes RSVP to Maybe](screenshots/11_rsvp_maybe.png)
+
+*Attendee changes their RSVP to Maybe, with live event counts updated.*
+
+### Not Going RSVP
+
+![Attendee changes RSVP to Not Going](screenshots/12_rsvp_not_going.png)
+
+*Attendee changes their RSVP to Not Going, with the live tracker reflecting the response.*
+
+### Guest Count and Capacity
+
+![RSVP guest count reflected in event capacity](screenshots/13_guest_capacity.png)
+
+*Guest seats are included in the attendee's RSVP and event capacity totals.*
+
+### Full Event and Waitlist
+
+![Full event and attendee waitlist placement](screenshots/14_waitlist_placement.png)
+
+*Full event capacity with an attendee placed in the waitlist queue.*
+
+### Waitlist Promotion
+
+![Attendee promoted from the waitlist](screenshots/15_waitlist_promotion.png)
+
+*Cancelling a confirmed RSVP releases a seat and promotes the next attendee from the waitlist.*
+
+Add the remaining verified captures from the [evidence checklist](docs/PROOF_CHECKLIST.md).
+
 ## 🚀 Quick Start Guide
 
 ### Prerequisites

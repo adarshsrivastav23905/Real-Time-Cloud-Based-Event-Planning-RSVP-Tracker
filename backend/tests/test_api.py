@@ -188,6 +188,24 @@ async def test_07_create_event(client):
     event_ids["test_event"] = resp.json()["id"]
 
 
+@pytest.mark.asyncio
+async def test_event_creation_accepts_utc_timestamps(client):
+    """Test: Browser-style ISO timestamps with UTC offsets are accepted."""
+    resp = await client.post("/api/events", json={
+        "event_name": "UTC Timestamp Workshop",
+        "description": "Event creation with UTC-aware timestamps",
+        "event_type": "workshop",
+        "event_date": "2027-06-15T09:00:00.000Z",
+        "start_time": "10:00",
+        "end_time": "13:00",
+        "venue": "Test Venue",
+        "max_capacity": 40,
+        "registration_deadline": "2027-06-10T23:59:00.000Z",
+        "status": "published",
+    }, headers={"Authorization": f"Bearer {tokens['organizer']}"})
+    assert resp.status_code == 201, resp.text
+
+
 # ═══════════════════════════════════════════════════════════════════
 # TEST 5: Attendee Cannot Create Event
 # ═══════════════════════════════════════════════════════════════════

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth, DEMO_ACCOUNTS } from '../context/AuthContext';
 import {
   Cloud,
@@ -24,7 +24,7 @@ export default function AuthPage() {
 
   // If already logged in, redirect
   if (user) {
-    navigate('/events');
+    return <Navigate to="/events" replace />;
   }
 
   const handleChange = (e) => {

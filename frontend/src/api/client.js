@@ -61,7 +61,7 @@ class ApiClient {
       return data;
     } catch (err) {
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
-        throw new Error('Unable to connect to the backend server. Is FastAPI running on http://localhost:8000?');
+        throw new Error(`Unable to connect to the backend at ${API_BASE_URL}. Is FastAPI running?`);
       }
       throw err;
     }

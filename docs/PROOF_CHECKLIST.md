@@ -1,8 +1,9 @@
 # Demo and Evidence Checklist
 
-Capture screenshots or short recordings from the running application. Use
-synthetic data only, hide browser tokens and environment variables, and do not
-present planned cloud resources as deployed resources.
+Store project screenshots and short recordings in the repository's root
+`screenshots/` directory. Use synthetic data, keep the relevant content legible,
+hide browser tokens and environment variables, and do not present planned cloud
+resources as deployed resources.
 
 ## Application Evidence
 
@@ -35,7 +36,7 @@ present planned cloud resources as deployed resources.
 
 ## Suggested Filenames
 
-Use descriptive names such as `01-repository.png`,
-`02-architecture.png`, `03-organizer-dashboard.png`,
-`04-live-rsvp-update.mp4`, and `05-api-tests.png`. Do not fabricate screenshots,
+Use sequential, descriptive names such as `01_repository.png`,
+`02_architecture.png`, `03_organizer_dashboard.png`,
+`04_live_rsvp_update.mp4`, and `05_api_tests.png`. Do not fabricate screenshots,
 deployment evidence, or a multi-day development history.

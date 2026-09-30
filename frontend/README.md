@@ -1,16 +1,32 @@
-# React + Vite
+# Event Planning and RSVP Tracker Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The frontend is a React single-page application built with Vite. It provides
+attendee and organizer workflows for event discovery, RSVP management,
+announcements, check-in, and analytics. The FastAPI backend must be running for
+authenticated and data-backed features to work.
 
-Currently, two official plugins are available:
+## Requirements
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-## React Compiler
+## Run Locally
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+From this directory, install dependencies and start the Vite development server:
 
-## Expanding the Oxlint configuration
+```bash
+npm install
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Open `http://localhost:5173`. By default, API requests use
+`http://localhost:8000/api`. Set `VITE_API_URL` when the backend is hosted at a
+different URL.
+
+## Quality Checks
+
+```bash
+npm run lint
+npm run build
+```
+
+For backend setup, demo accounts, and full-stack instructions, see the
+[project README](../README.md).

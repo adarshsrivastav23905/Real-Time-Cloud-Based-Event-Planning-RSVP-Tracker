@@ -17,6 +17,12 @@ from app.realtime import manager
 router = APIRouter(prefix="/api/events", tags=["Events"])
 
 
+def _to_utc_naive(value: datetime.datetime) -> datetime.datetime:
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+
+
 async def _enrich_event(event: Event, db: AsyncSession) -> EventResponse:
     """Add RSVP counts and organizer name to event response."""
     # Count RSVPs by status
@@ -58,12 +64,16 @@ async def create_event(
     Create a new event (organizer/admin only).
     Validates dates, times, capacity, and registration deadline.
     """
+    event_date = _to_utc_naive(event_data.event_date)
+    registration_deadline = _to_utc_naive(event_data.registration_deadline)
+    now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+
     # Validate event_date is in the future
-    if event_data.event_date < datetime.datetime.utcnow():
+    if event_date < now:
         raise HTTPException(status_code=400, detail="Event date must be in the future")
 
     # Validate registration deadline is before event date
-    if event_data.registration_deadline > event_data.event_date:
+    if registration_deadline > event_date:
         raise HTTPException(status_code=400, detail="Registration deadline must be before event date")
 
     # Validate start_time < end_time
@@ -75,13 +85,13 @@ async def create_event(
         event_name=event_data.event_name,
         description=event_data.description,
         event_type=event_data.event_type,
-        event_date=event_data.event_date,
+        event_date=event_date,
         start_time=event_data.start_time,
         end_time=event_data.end_time,
         venue=event_data.venue,
         online_link=event_data.online_link,
         max_capacity=event_data.max_capacity,
-        registration_deadline=event_data.registration_deadline,
+        registration_deadline=registration_deadline,
         status=event_data.status.value,
         banner_url=event_data.banner_url,
     )

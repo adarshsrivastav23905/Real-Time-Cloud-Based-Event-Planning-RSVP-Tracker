@@ -154,6 +154,7 @@ export default function DashboardPage() {
 
         {/* KPI Cards Strip */}
         <div
+          className="dashboard-chart-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',

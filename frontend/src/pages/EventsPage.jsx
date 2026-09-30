@@ -45,7 +45,7 @@ export default function EventsPage() {
 
   useEffect(() => {
     fetchEvents();
-  }, [selectedType, selectedStatus]);
+  }, [selectedType, selectedStatus, user?.id]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();

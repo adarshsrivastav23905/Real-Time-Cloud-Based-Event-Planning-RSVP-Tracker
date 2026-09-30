@@ -98,10 +98,10 @@ export default function Navbar() {
         zIndex: 50,
       }}
     >
-      <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '72px' }}>
+      <div className="container site-header-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '72px' }}>
         
         {/* Brand / Logo */}
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Link to="/" className="site-brand" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div
             style={{
               background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
@@ -116,7 +116,7 @@ export default function Navbar() {
           >
             <Cloud size={22} color="#ffffff" />
           </div>
-          <div>
+          <div className="site-brand-copy">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontWeight: 800, fontSize: '1.15rem', letterSpacing: '-0.02em' }}>
                 Cloud<span className="gradient-text">RSVP</span>
@@ -139,12 +139,12 @@ export default function Navbar() {
                 {isConnected ? 'LIVE SYNC' : 'OFFLINE'}
               </span>
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Real-Time Cloud Event Hub</div>
+            <div className="site-brand-subtitle" style={{ fontSize: '0.72rem', color: '#64748b' }}>Real-Time Cloud Event Hub</div>
           </div>
         </Link>
 
         {/* Navigation Links */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <nav className="site-nav" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Link
             to="/events"
             style={{
@@ -229,10 +229,10 @@ export default function Navbar() {
         </nav>
 
         {/* Right Action Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="site-actions" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           
           {isOrganizer && (
-            <Link to="/events/new" className="btn btn-primary" style={{ padding: '8px 14px', fontSize: '0.85rem' }}>
+            <Link to="/events/new" className="btn btn-primary site-create-link" style={{ padding: '8px 14px', fontSize: '0.85rem' }}>
               <PlusCircle size={16} /> Create Event
             </Link>
           )}
@@ -241,9 +241,10 @@ export default function Navbar() {
           <div ref={demoRef} style={{ position: 'relative' }}>
             <button
               onClick={() => setShowDemoMenu(!showDemoMenu)}
-              className="btn btn-secondary"
+              className="btn btn-secondary site-demo-button"
               style={{ padding: '7px 12px', fontSize: '0.82rem', gap: 5 }}
               title="Quick Switch Demo Roles"
+              aria-label="Quick switch demo role"
             >
               <User size={14} /> Demo Roles <ChevronDown size={14} />
             </button>
@@ -316,6 +317,7 @@ export default function Navbar() {
                   border: '1px solid rgba(255, 255, 255, 0.08)',
                   color: unreadCount > 0 ? '#818cf8' : '#94a3b8',
                 }}
+                className="site-notifications-button"
                 aria-label="Notifications"
               >
                 <Bell size={18} />
@@ -417,6 +419,8 @@ export default function Navbar() {
             <div ref={userRef} style={{ position: 'relative' }}>
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
+                className="site-user-trigger"
+                aria-label={`Account menu for ${user.full_name || user.username}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -443,7 +447,7 @@ export default function Navbar() {
                 >
                   {user.full_name ? user.full_name[0].toUpperCase() : 'U'}
                 </div>
-                <div style={{ textAlign: 'left' }}>
+                <div className="site-profile-copy" style={{ textAlign: 'left' }}>
                   <div style={{ fontSize: '0.85rem', fontWeight: 600, lineHeight: 1.2 }}>{user.full_name}</div>
                   <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'capitalize' }}>{user.role}</div>
                 </div>
