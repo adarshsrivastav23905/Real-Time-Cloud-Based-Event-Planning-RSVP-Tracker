@@ -22,6 +22,12 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
     - Hashes password with bcrypt
     - Returns JWT token for immediate login
     """
+    if user_data.role.value != "attendee":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Public registration is restricted to attendee accounts",
+        )
+
     # Check for existing username
     existing = await db.execute(select(User).where(User.username == user_data.username))
     if existing.scalar_one_or_none():
@@ -38,7 +44,7 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
         email=user_data.email,
         hashed_password=hash_password(user_data.password),
         full_name=user_data.full_name,
-        role=user_data.role.value,
+        role="attendee",
     )
     db.add(new_user)
 

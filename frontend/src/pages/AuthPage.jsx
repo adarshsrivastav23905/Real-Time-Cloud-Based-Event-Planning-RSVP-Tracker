@@ -1,21 +1,14 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth, DEMO_ACCOUNTS } from '../context/AuthContext';
 import {
   Cloud,
-  Lock,
-  User,
-  Mail,
-  Shield,
   Sparkles,
-  ArrowRight,
-  CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
 
 export default function AuthPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { login, register, quickLogin, user } = useAuth();
 
   const [mode, setMode] = useState('login'); // 'login' | 'register'
@@ -24,7 +17,6 @@ export default function AuthPage() {
     password: '',
     email: '',
     full_name: '',
-    role: 'attendee',
   });
 
   const [loading, setLoading] = useState(false);
@@ -261,13 +253,6 @@ export default function AuthPage() {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Account Role</label>
-                  <select name="role" value={formData.role} onChange={handleChange} className="form-select">
-                    <option value="attendee">Attendee (RSVP & View Events)</option>
-                    <option value="organizer">Organizer (Create & Manage Events)</option>
-                  </select>
-                </div>
               </>
             )}
 

@@ -22,7 +22,9 @@ router = APIRouter(prefix="/api", tags=["RSVP"])
 async def _get_rsvp_counts(event_id: str, db: AsyncSession) -> dict:
     """Get current RSVP counts for an event (used for real-time broadcasts)."""
     going = await db.execute(
-        select(func.count()).where(and_(RSVP.event_id == event_id, RSVP.status == "going"))
+        select(func.coalesce(func.sum(RSVP.guests_count + 1), 0)).where(
+            and_(RSVP.event_id == event_id, RSVP.status == "going")
+        )
     )
     maybe = await db.execute(
         select(func.count()).where(and_(RSVP.event_id == event_id, RSVP.status == "maybe"))
@@ -57,12 +59,13 @@ async def create_rsvp(
 
     CONCURRENCY-SAFE CAPACITY CHECK:
     ────────────────────────────────
-    The capacity check and RSVP insertion are performed within the same
-    database session/transaction. For SQLite, this uses SERIALIZABLE isolation.
-    For PostgreSQL/MySQL in production, use SELECT ... FOR UPDATE to lock the row.
+    The event row is locked while checking capacity and writing an RSVP. This
+    serializes reservations for the same event on PostgreSQL.
     """
     # 1. Validate event exists and is open for registration
-    result = await db.execute(select(Event).where(Event.id == event_id))
+    result = await db.execute(
+        select(Event).where(Event.id == event_id).with_for_update()
+    )
     event = result.scalar_one_or_none()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -86,11 +89,13 @@ async def create_rsvp(
     requested_guests = rsvp_data.guests_count or 0
     if rsvp_data.status.value == "going":
         going_count_result = await db.execute(
-            select(func.count()).where(and_(RSVP.event_id == event_id, RSVP.status == "going"))
+            select(func.coalesce(func.sum(RSVP.guests_count + 1), 0)).where(
+                and_(RSVP.event_id == event_id, RSVP.status == "going")
+            )
         )
         current_going = going_count_result.scalar() or 0
 
-        if current_going >= event.max_capacity:
+        if current_going + 1 + requested_guests > event.max_capacity:
             # Event is full → add to waitlist instead
             final_status = "going"
             wl_count = await db.execute(
@@ -138,9 +143,11 @@ async def create_rsvp(
     # 6. Update event status if now full
     if final_status == "going":
         going_count_result = await db.execute(
-            select(func.count()).where(and_(RSVP.event_id == event_id, RSVP.status == "going"))
+            select(func.coalesce(func.sum(RSVP.guests_count + 1), 0)).where(
+                and_(RSVP.event_id == event_id, RSVP.status == "going")
+            )
         )
-        if (going_count_result.scalar() or 0) + 1 >= event.max_capacity:
+        if (going_count_result.scalar() or 0) >= event.max_capacity:
             event.status = "full"
 
     # 7. Create notification for RSVP confirmation
@@ -201,6 +208,13 @@ async def update_rsvp(
     Update an existing RSVP. Handles capacity checks when changing to 'going'.
     Users can only update their own RSVP.
     """
+    event_result = await db.execute(
+        select(Event).where(Event.id == event_id).with_for_update()
+    )
+    event = event_result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
     result = await db.execute(
         select(RSVP).where(and_(RSVP.event_id == event_id, RSVP.user_id == current_user.id))
     )
@@ -208,27 +222,32 @@ async def update_rsvp(
     if not rsvp:
         raise HTTPException(status_code=404, detail="No RSVP found. Use POST to create one.")
 
-    event_result = await db.execute(select(Event).where(Event.id == event_id))
-    event = event_result.scalar_one_or_none()
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-
     old_status = rsvp.status
     new_status = rsvp_data.status.value
+    new_guests_count = (
+        rsvp_data.guests_count
+        if rsvp_data.guests_count is not None
+        else rsvp.guests_count
+    )
 
-    # Capacity check when changing to "going"
-    if new_status == "going" and old_status != "going":
+    if new_status == "going":
         going_count_result = await db.execute(
-            select(func.count()).where(and_(RSVP.event_id == event_id, RSVP.status == "going"))
+            select(func.coalesce(func.sum(RSVP.guests_count + 1), 0)).where(
+                and_(RSVP.event_id == event_id, RSVP.status == "going")
+            )
         )
         current_going = going_count_result.scalar() or 0
-        if current_going >= event.max_capacity:
+        current_party_size = 1 + rsvp.guests_count if old_status == "going" else 0
+        requested_party_size = 1 + new_guests_count
+        if (
+            current_going - current_party_size + requested_party_size
+            > event.max_capacity
+        ):
             raise HTTPException(status_code=409, detail="Event is at full capacity. Cannot change to Going.")
 
     # Update RSVP fields
     rsvp.status = new_status
-    if rsvp_data.guests_count is not None:
-        rsvp.guests_count = rsvp_data.guests_count
+    rsvp.guests_count = new_guests_count
     rsvp.updated_at = datetime.datetime.utcnow()
 
     # If user was "going" and changed away, promote from waitlist
@@ -258,16 +277,21 @@ async def update_rsvp(
 
         if event.status == "full":
             going_count_result = await db.execute(
-                select(func.count()).where(and_(RSVP.event_id == event_id, RSVP.status == "going"))
+                select(func.coalesce(func.sum(RSVP.guests_count + 1), 0)).where(
+                    and_(RSVP.event_id == event_id, RSVP.status == "going")
+                )
             )
             if (going_count_result.scalar() or 0) < event.max_capacity:
                 event.status = "published"
 
     if new_status == "going":
         going_count_result = await db.execute(
-            select(func.count()).where(and_(RSVP.event_id == event_id, RSVP.status == "going"))
+            select(func.coalesce(func.sum(RSVP.guests_count + 1), 0)).where(
+                and_(RSVP.event_id == event_id, RSVP.status == "going")
+            )
         )
-        if (going_count_result.scalar() or 0) >= event.max_capacity:
+        current_going = going_count_result.scalar() or 0
+        if current_going >= event.max_capacity:
             event.status = "full"
 
     db.add(AuditLog(
@@ -298,6 +322,13 @@ async def cancel_rsvp(
     current_user: User = Depends(get_current_user)
 ):
     """Cancel (delete) an RSVP. Promotes waitlisted user if applicable."""
+    event_result = await db.execute(
+        select(Event).where(Event.id == event_id).with_for_update()
+    )
+    event = event_result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
     result = await db.execute(
         select(RSVP).where(and_(RSVP.event_id == event_id, RSVP.user_id == current_user.id))
     )
@@ -308,10 +339,7 @@ async def cancel_rsvp(
     was_going = rsvp.status == "going"
     await db.delete(rsvp)
 
-    event_result = await db.execute(select(Event).where(Event.id == event_id))
-    event = event_result.scalar_one_or_none()
-
-    if was_going and event:
+    if was_going:
         wl_result = await db.execute(
             select(Waitlist)
             .where(and_(Waitlist.event_id == event_id, Waitlist.status == "waiting"))

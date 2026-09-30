@@ -18,22 +18,55 @@ Run: pytest tests/test_api.py -v
 import pytest
 import asyncio
 from httpx import AsyncClient, ASGITransport
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.main import app
-from app.database import init_db, engine, Base
+from app.database import Base, get_db
+from app.models import User
+from app.auth import create_access_token, hash_password
 
 
+tokens = {}
+event_ids = {}
+memory_engine = create_async_engine(
+    "sqlite+aiosqlite:///:memory:",
+    connect_args={"check_same_thread": False},
+)
+db_session_factory = async_sessionmaker(memory_engine, expire_on_commit=False)
 
+
+async def override_get_db():
+    async with db_session_factory() as db:
+        yield db
 
 
 @pytest.fixture(scope="session", autouse=True)
 async def setup_db():
-    """Create fresh database tables for testing."""
-    async with engine.begin() as conn:
+    """Create an isolated in-memory database for the test suite."""
+    app.dependency_overrides[get_db] = override_get_db
+    async with memory_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
+
+    async with db_session_factory() as db:
+        organizer = User(
+            id="test-organizer-id",
+            username="test_organizer",
+            email="test_org@example.com",
+            hashed_password=hash_password("testpass123"),
+            full_name="Test Organizer",
+            role="organizer",
+        )
+        db.add(organizer)
+        await db.commit()
+        tokens["organizer"] = create_access_token(
+            {"sub": organizer.id, "username": organizer.username, "role": organizer.role}
+        )
+
     yield
-    async with engine.begin() as conn:
+    app.dependency_overrides.pop(get_db, None)
+    async with memory_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+    await memory_engine.dispose()
 
 
 @pytest.fixture
@@ -43,18 +76,13 @@ async def client():
         yield ac
 
 
-# ─── Storage for tokens ──────────────────────────────────────────
-tokens = {}
-event_ids = {}
-
-
 # ═══════════════════════════════════════════════════════════════════
-# TEST 1: User Registration
+# TEST 1: Public Registration Role Restrictions
 # ═══════════════════════════════════════════════════════════════════
 
 @pytest.mark.asyncio
-async def test_01_register_organizer(client):
-    """Test: Organizer registration succeeds."""
+async def test_01_public_registration_cannot_assign_privileged_role(client):
+    """Test: Public registration rejects organizer role assignment."""
     resp = await client.post("/api/register", json={
         "username": "test_organizer",
         "email": "test_org@example.com",
@@ -62,10 +90,8 @@ async def test_01_register_organizer(client):
         "full_name": "Test Organizer",
         "role": "organizer"
     })
-    assert resp.status_code == 201
-    data = resp.json()
-    assert data["user"]["role"] == "organizer"
-    tokens["organizer"] = data["access_token"]
+    assert resp.status_code == 403
+    assert "attendee accounts" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -104,7 +130,7 @@ async def test_03_register_attendee2(client):
 async def test_04_duplicate_username(client):
     """Test: Duplicate username is rejected."""
     resp = await client.post("/api/register", json={
-        "username": "test_organizer",
+        "username": "test_attendee",
         "email": "new_email@example.com",
         "password": "testpass123",
         "full_name": "Duplicate User",
@@ -122,7 +148,7 @@ async def test_04_duplicate_username(client):
 async def test_05_login_success(client):
     """Test: Login with valid credentials succeeds."""
     resp = await client.post("/api/login", json={
-        "username": "test_organizer",
+        "username": "test_attendee",
         "password": "testpass123"
     })
     assert resp.status_code == 200
@@ -133,7 +159,7 @@ async def test_05_login_success(client):
 async def test_06_login_failure(client):
     """Test: Login with wrong password fails."""
     resp = await client.post("/api/login", json={
-        "username": "test_organizer",
+        "username": "test_attendee",
         "password": "wrongpassword"
     })
     assert resp.status_code == 401
@@ -416,3 +442,41 @@ async def test_22_health_check(client):
     resp = await client.get("/api/health")
     assert resp.status_code == 200
     assert resp.json()["status"] == "healthy"
+
+
+@pytest.mark.asyncio
+async def test_guests_count_toward_event_capacity(client):
+    """Test: Plus-ones consume seats and cannot push an event over capacity."""
+    event_resp = await client.post("/api/events", json={
+        "event_name": "Headcount Capacity Test",
+        "event_date": "2027-08-15T09:00:00",
+        "start_time": "09:00",
+        "end_time": "10:00",
+        "max_capacity": 2,
+        "registration_deadline": "2027-08-10T23:59:00",
+        "status": "published",
+    }, headers={"Authorization": f"Bearer {tokens['organizer']}"})
+    assert event_resp.status_code == 201
+    event_id = event_resp.json()["id"]
+
+    first_rsvp = await client.post(
+        f"/api/events/{event_id}/rsvp",
+        json={"status": "going", "guests_count": 1},
+        headers={"Authorization": f"Bearer {tokens['attendee']}"},
+    )
+    assert first_rsvp.status_code == 201
+
+    oversized_update = await client.put(
+        f"/api/events/{event_id}/rsvp",
+        json={"status": "going", "guests_count": 2},
+        headers={"Authorization": f"Bearer {tokens['attendee']}"},
+    )
+    assert oversized_update.status_code == 409
+
+    second_rsvp = await client.post(
+        f"/api/events/{event_id}/rsvp",
+        json={"status": "going"},
+        headers={"Authorization": f"Bearer {tokens['attendee2']}"},
+    )
+    assert second_rsvp.status_code == 409
+    assert "waitlist" in second_rsvp.json()["detail"].lower()

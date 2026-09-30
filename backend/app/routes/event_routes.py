@@ -21,7 +21,9 @@ async def _enrich_event(event: Event, db: AsyncSession) -> EventResponse:
     """Add RSVP counts and organizer name to event response."""
     # Count RSVPs by status
     going = await db.execute(
-        select(func.count()).where(and_(RSVP.event_id == event.id, RSVP.status == "going"))
+        select(func.coalesce(func.sum(RSVP.guests_count + 1), 0)).where(
+            and_(RSVP.event_id == event.id, RSVP.status == "going")
+        )
     )
     maybe = await db.execute(
         select(func.count()).where(and_(RSVP.event_id == event.id, RSVP.status == "maybe"))

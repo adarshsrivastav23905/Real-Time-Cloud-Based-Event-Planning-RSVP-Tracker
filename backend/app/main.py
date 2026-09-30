@@ -23,8 +23,11 @@ import json
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from jose import JWTError, jwt
+from sqlalchemy import select
 from app.config import settings
-from app.database import init_db
+from app.database import async_session, init_db
+from app.models import User
 from app.realtime import manager
 
 # Import route modules
@@ -59,12 +62,7 @@ app = FastAPI(
 # Allows the React frontend to communicate with this backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        settings.FRONTEND_URL,
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -79,6 +77,33 @@ app.include_router(notification_router)
 
 
 # ─── WebSocket Endpoints ─────────────────────────────────────────
+
+async def _authenticate_websocket(websocket: WebSocket) -> User | None:
+    """Authenticate browser WebSocket connections using the access token query parameter."""
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=1008)
+        return None
+
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        user_id = payload.get("sub")
+        if not user_id:
+            raise JWTError("Token has no subject")
+    except JWTError:
+        await websocket.close(code=1008)
+        return None
+
+    async with async_session() as db:
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if user is None or not user.is_active:
+            await websocket.close(code=1008)
+            return None
+        return user
+
 
 @app.websocket("/ws/events/{event_id}")
 async def websocket_event(websocket: WebSocket, event_id: str):
@@ -95,6 +120,10 @@ async def websocket_event(websocket: WebSocket, event_id: str):
       "data": { "going": 49, "maybe": 12, "not_going": 7, "waitlist": 3 }
     }
     """
+    user = await _authenticate_websocket(websocket)
+    if user is None:
+        return
+
     await manager.connect(websocket, event_id)
     try:
         while True:
@@ -113,6 +142,13 @@ async def websocket_notifications(websocket: WebSocket, user_id: str):
     WebSocket endpoint for user-specific real-time notifications.
     Delivers announcements, RSVP confirmations, waitlist promotions etc.
     """
+    user = await _authenticate_websocket(websocket)
+    if user is None:
+        return
+    if user.id != user_id:
+        await websocket.close(code=1008)
+        return
+
     await manager.connect_user(websocket, user_id)
     try:
         while True:

@@ -19,6 +19,12 @@ router = APIRouter(prefix="/api", tags=["Analytics"])
 async def _compute_event_analytics(event: Event, db: AsyncSession) -> EventAnalytics:
     """Compute analytics for a single event."""
     going = (await db.execute(
+        select(func.coalesce(func.sum(RSVP.guests_count + 1), 0)).where(
+            and_(RSVP.event_id == event.id, RSVP.status == "going")
+        )
+    )).scalar() or 0
+
+    going_responses = (await db.execute(
         select(func.count()).where(and_(RSVP.event_id == event.id, RSVP.status == "going"))
     )).scalar() or 0
 
@@ -38,7 +44,7 @@ async def _compute_event_analytics(event: Event, db: AsyncSession) -> EventAnaly
         select(func.count()).where(and_(RSVP.event_id == event.id, RSVP.checked_in == True))
     )).scalar() or 0
 
-    total_rsvps = going + maybe + not_going
+    total_rsvps = going_responses + maybe + not_going
     # Response rate: percentage of capacity that responded
     response_rate = (total_rsvps / event.max_capacity * 100) if event.max_capacity > 0 else 0
     # Capacity utilization: percentage of capacity filled by "going"

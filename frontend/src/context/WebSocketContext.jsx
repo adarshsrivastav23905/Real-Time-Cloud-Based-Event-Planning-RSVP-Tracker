@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext';
+import api from '../api/client';
 
 const WebSocketContext = createContext(null);
 
@@ -16,6 +17,10 @@ export function WebSocketProvider({ children }) {
   const notifSocketRef = useRef(null);
   const subscribedEventsRef = useRef(new Set());
 
+  const removeToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
   const addToast = useCallback((toast) => {
     const id = Date.now() + Math.random().toString(36).substr(2, 5);
     const newToast = { id, ...toast };
@@ -23,11 +28,7 @@ export function WebSocketProvider({ children }) {
     setTimeout(() => {
       removeToast(id);
     }, 5000);
-  }, []);
-
-  const removeToast = useCallback((id) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+  }, [removeToast]);
 
   // Connect to user notification WebSocket
   useEffect(() => {
@@ -46,7 +47,8 @@ export function WebSocketProvider({ children }) {
     function connectUserSocket() {
       if (!isSubscribed) return;
 
-      const wsUrl = `${WS_BASE_URL}/ws/notifications/${user.id}`;
+      const token = api.getToken();
+      const wsUrl = `${WS_BASE_URL}/ws/notifications/${user.id}?token=${encodeURIComponent(token)}`;
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -115,7 +117,8 @@ export function WebSocketProvider({ children }) {
 
     subscribedEventsRef.current.add(eventId);
 
-    const wsUrl = `${WS_BASE_URL}/ws/events/${eventId}`;
+    const token = api.getToken();
+    const wsUrl = `${WS_BASE_URL}/ws/events/${eventId}?token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

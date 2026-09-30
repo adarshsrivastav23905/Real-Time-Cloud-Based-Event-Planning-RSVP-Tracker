@@ -7,12 +7,11 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import DeclarativeBase
 from app.config import settings
 
-# Create async engine — in production, replace SQLite with a cloud database URL
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=settings.DEBUG,
-    connect_args={"check_same_thread": False}  # SQLite-specific
-)
+engine_options = {"echo": settings.DEBUG, "pool_pre_ping": True}
+if settings.DATABASE_URL.startswith("sqlite"):
+    engine_options["connect_args"] = {"check_same_thread": False}
+
+engine = create_async_engine(settings.DATABASE_URL, **engine_options)
 
 # Session factory for dependency injection
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
