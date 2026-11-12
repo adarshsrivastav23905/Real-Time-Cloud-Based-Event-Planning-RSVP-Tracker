@@ -3,7 +3,7 @@
 > A modern, full-stack, cloud-native event management and live RSVP tracking system featuring **concurrency-safe atomic capacity control**, **WebSocket pub/sub real-time dashboard synchronization**, **venue QR fast-pass check-ins**, and **comprehensive attendance analytics**.
   
 ---
-
+  
 ## 🌟 Key Highlights & Cloud Computing Concepts
 
 - ⚡ **Real-Time Bidirectional Synchronization**: Authenticated FastAPI WebSocket channels broadcast RSVP and event updates to connected clients.
